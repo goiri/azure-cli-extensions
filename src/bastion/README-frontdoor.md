@@ -24,6 +24,17 @@ One needs to create an Azure Front Door that points to the "public" DNS/IP of th
 
 Some example bicep script to create a full setup with VMSS, Bastion, and Front Door can be found [here](https://dev.azure.com/azsr/AzureDeploy/_git/AzTemplates/pullrequest/292).
 
+```powershell
+az bicep generate-params --file .\vmss-linux-frontdoor-bastion.bicep --output-format bicepparam --include-params all
+# Tune the vmss-linux-frontdoor-bastion.bicepparam file
+
+$RESOURCE_GROUP_NAME="<choose>"
+$REGION="<choose>"
+az group create --name $RESOURCE_GROUP --location $REGION
+az deployment group create --resource-group $RESOURCE_GROUP --parameters .\vmss-linux-frontdoor-bastion.bicepparam
+```
+
+Note that this creation takes a long time (>5 minutes) because we need to wait for the Bastion to be created and then the Front Door.
 
 ## Use the extension
 Now, one can pass the Azure Front Door address with the `--frontdoor` argument:
