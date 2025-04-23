@@ -22,7 +22,7 @@ az extension add --source .\dist\bastion-1.4.0-py3-none-any.whl
 ## Create Azure Front Door
 One needs to create an Azure Front Door that points to the "public" DNS/IP of the Azure Bastion.
 
-TODO provide Azure Bicep script.
+Some example bicep script to create a full setup with VMSS, Bastion, and Front Door can be found (here)[https://dev.azure.com/azsr/AzureDeploy/_git/AzTemplates/pullrequest/292].
 
 
 ## Use the extension
