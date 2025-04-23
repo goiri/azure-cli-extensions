@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 
 # pylint: disable=no-member,too-many-instance-attributes,bare-except,no-self-use
 class TunnelServer:
-    def __init__(self, cli_ctx, local_addr, local_port, bastion, bastion_endpoint, remote_host, remote_port):
+    def __init__(self, cli_ctx, local_addr, local_port, bastion, bastion_endpoint, remote_host, remote_port, frontdoor):
         self.local_addr = local_addr
         self.local_port = int(local_port)
         if self.local_port != 0 and not self.is_port_open():
@@ -48,6 +48,7 @@ class TunnelServer:
         self.remote_host = remote_host
         self.remote_port = remote_port
         self.bastion_endpoint = bastion_endpoint
+        self.frontdoor = frontdoor
         self.client = None
         self.ws = None
         self.last_token = None
@@ -97,8 +98,14 @@ class TunnelServer:
 
         logger.debug("Content: %s", str(content))
         web_address = f"https://{self.bastion_endpoint}/api/tokens"
-        response = requests.post(web_address, data=content, headers=custom_header,
-                                 verify=not should_disable_connection_verify())
+        if self.frontdoor is not None:
+            print("[tunnel#_get_auth_token] Using Azure FrontDoor:", web_address)
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            response = requests.post(web_address, data=content, headers=custom_header,
+                                     verify=False)
+        else:
+            response = requests.post(web_address, data=content, headers=custom_header,
+                                     verify=not should_disable_connection_verify())
         response_json = None
 
         if response.content is not None:
@@ -135,11 +142,22 @@ class TunnelServer:
             else:
                 host = f"wss://{self.bastion_endpoint}/webtunnelv2/{auth_token}?X-Node-Id={self.node_id}"
 
-            verify_mode = ssl.CERT_NONE if should_disable_connection_verify() else ssl.CERT_REQUIRED
-            ws = create_connection(host,
-                                   sockopt=((socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),),
-                                   sslopt={'cert_reqs': verify_mode},
-                                   enable_multithread=True)
+            use_frontdoor = True
+            if use_frontdoor:
+                print("[tunnel#handle_client] Using Azure FrontDoor:", host)
+                ws = create_connection(host,
+                                       sockopt=((socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),),
+                                       sslopt={
+                                           'cert_reqs': ssl.CERT_NONE,
+                                           "check_hostname": False,
+                                       },
+                                       enable_multithread=True)
+            else:
+                verify_mode = ssl.CERT_NONE if should_disable_connection_verify() else ssl.CERT_REQUIRED
+                ws = create_connection(host,
+                                       sockopt=((socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),),
+                                       sslopt={'cert_reqs': verify_mode},
+                                       enable_multithread=True)
             logger.info('Websocket, connected status: %s', ws.connected)
             logger.info('Got debugger connection... index: %s', index)
             debugger_thread = Thread(target=self._listen_to_client, args=(client, ws, index))

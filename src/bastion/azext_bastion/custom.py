@@ -167,7 +167,7 @@ def _build_args(cert_file, private_key_file):
 
 
 def ssh_bastion_host(cmd, auth_type, target_resource_id, target_ip_address, resource_group_name, bastion_host_name,
-                     resource_port=None, username=None, ssh_key=None, ssh_args=None):
+                     resource_port=None, username=None, ssh_key=None, frontdoor=None, ssh_args=None):
     import os
     from .aaz.latest.network.bastion import Show
 
@@ -195,7 +195,11 @@ def ssh_bastion_host(cmd, auth_type, target_resource_id, target_ip_address, reso
     _validate_resourceid(target_resource_id)
     bastion_endpoint = _get_bastion_endpoint(cmd, bastion, resource_port, target_resource_id)
 
-    tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port)
+    if frontdoor is not None:
+        print(f"[ssh_bastion_host] Overwritting {bastion_endpoint} with Azure FrontDoor {frontdoor}")
+        bastion_endpoint = frontdoor
+
+    tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port, frontdoor=frontdoor)
     if ip_connect:
         tunnel_server.set_host_name(target_ip_address)
     t = threading.Thread(target=_start_tunnel, args=(tunnel_server,))
@@ -279,7 +283,7 @@ def _get_rdp_file_path(tunnel_server):
 
 
 def rdp_bastion_host(cmd, target_resource_id, target_ip_address, resource_group_name, bastion_host_name,
-                     auth_type=None, resource_port=None, disable_gateway=False, configure=False, enable_mfa=False):
+                     auth_type=None, resource_port=None, disable_gateway=False, configure=False, enable_mfa=False, frontdoor=None):
     import os
     from azure.cli.core._profile import Profile
     from ._process_helper import launch_and_wait
@@ -325,9 +329,13 @@ def rdp_bastion_host(cmd, target_resource_id, target_ip_address, resource_group_
     _validate_resourceid(target_resource_id)
     bastion_endpoint = _get_bastion_endpoint(cmd, bastion, resource_port, target_resource_id)
 
+    if frontdoor is not None:
+        print(f"[rdp_bastion_host] Overwritting {bastion_endpoint} with Azure FrontDoor {frontdoor}")
+        bastion_endpoint = frontdoor
+
     if platform.system() == "Windows":
         if disable_gateway or ip_connect:
-            tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port)
+            tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port, frontdoor=frontdoor)
             if ip_connect:
                 tunnel_server.set_host_name(target_ip_address)
             t = threading.Thread(target=_start_tunnel, args=(tunnel_server,))
@@ -421,12 +429,12 @@ def _write_to_file(response, file_path):
             f.write(line + "\n")
 
 
-def _get_tunnel(cmd, bastion, bastion_endpoint, vm_id, resource_port, port=None):
+def _get_tunnel(cmd, bastion, bastion_endpoint, vm_id, resource_port, port=None, frontdoor=None):
     from .tunnel import TunnelServer
 
     if port is None:
         port = 0  # will auto-select a free port from 1024-65535
-    tunnel_server = TunnelServer(cmd.cli_ctx, "localhost", port, bastion, bastion_endpoint, vm_id, resource_port)
+    tunnel_server = TunnelServer(cmd.cli_ctx, "localhost", port, bastion, bastion_endpoint, vm_id, resource_port, frontdoor)
 
     return tunnel_server
 
@@ -443,7 +451,7 @@ def _tunnel_close_handler(tunnel):
 
 
 def create_bastion_tunnel(cmd, target_resource_id, target_ip_address, resource_group_name, bastion_host_name,
-                          resource_port, port, timeout=None):
+                          resource_port, port, timeout=None, frontdoor=None):
 
     from .aaz.latest.network.bastion import Show
     bastion = Show(cli_ctx=cmd.cli_ctx)(command_args={
@@ -466,8 +474,11 @@ def create_bastion_tunnel(cmd, target_resource_id, target_ip_address, resource_g
 
     _validate_resourceid(target_resource_id)
     bastion_endpoint = _get_bastion_endpoint(cmd, bastion, resource_port, target_resource_id)
+    if frontdoor is not None:
+        print(f"[create_bastion_tunnel] Overwritting {bastion_endpoint} with Azure FrontDoor {frontdoor}")
+        bastion_endpoint = frontdoor
 
-    tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port, port)
+    tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port, port, frontdoor=frontdoor)
     if ip_connect:
         tunnel_server.set_host_name(target_ip_address)
     t = threading.Thread(target=_start_tunnel, args=(tunnel_server,))

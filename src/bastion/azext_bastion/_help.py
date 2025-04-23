@@ -17,7 +17,7 @@ short-summary: SSH to a virtual machine using Tunneling from Azure Bastion.
 examples:
   - name: SSH to virtual machine using Azure Bastion using password.
     text: |
-        az network bastion ssh --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId --auth-type password --username xyz
+        az network bastion ssh --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId --auth-type password --username xyz --frontdoor frontdoor
   - name: SSH to virtual machine using Azure Bastion using ssh key file.
     text: |
         az network bastion ssh --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId --auth-type ssh-key --username xyz --ssh-key C:/filepath/sshkey.pem
@@ -35,10 +35,10 @@ short-summary: RDP to target Virtual Machine using Tunneling from Azure Bastion.
 examples:
   - name: RDP to virtual machine using Azure Bastion.
     text: |
-        az network bastion rdp --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId
+        az network bastion rdp --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId --frontdoor frontdoor
   - name: RDP to machine using reachable IP address.
     text: |
-        az network bastion rdp --name MyBastionHost --resource-group MyResourceGroup --target-ip-address 10.0.0.1
+        az network bastion rdp --name MyBastionHost --resource-group MyResourceGroup --target-ip-address 10.0.0.1 --frontdoor frontdoor
 """
 
 helps['network bastion tunnel'] = """
@@ -47,8 +47,8 @@ short-summary: Open a tunnel through Azure Bastion to a target virtual machine.
 examples:
   - name: Open a tunnel through Azure Bastion to a target virtual machine using resourceId.
     text: |
-        az network bastion tunnel --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId --resource-port 22 --port 50022
+        az network bastion tunnel --name MyBastionHost --resource-group MyResourceGroup --target-resource-id vmResourceId --resource-port 22 --port 50022 --frontdoor frontdoor
   - name: Open a tunnel through Azure Bastion to a target virtual machine using its IP address.
     text: |
-        az network bastion tunnel --name MyBastionHost --resource-group MyResourceGroup --target-ip-address 10.0.0.1 --resource-port 22 --port 50022
+        az network bastion tunnel --name MyBastionHost --resource-group MyResourceGroup --target-ip-address 10.0.0.1 --resource-port 22 --port 50022 --frontdoor frontdoor
 """

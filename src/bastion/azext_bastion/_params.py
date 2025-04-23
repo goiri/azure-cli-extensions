@@ -34,7 +34,9 @@ def load_arguments(self, _):  # pylint: disable=unused-argument
         c.argument("auth_type", help="Auth type to use for SSH connections.", options_list=["--auth-type"])
         c.argument("ssh_key", help="SSH key file location for SSH connections.", options_list=["--ssh-key"])
         c.argument("username", help="User name for SSH connections.", options_list=["--username"])
+        c.argument("frontdoor", help="Azure Frontdoor proxy.", required=False, options_list=["--frontdoor"])
         c.positional("ssh_args", nargs="*", help="Additional arguments passed to OpenSSH.")
+
     with self.argument_context("network bastion rdp") as c:
         c.argument("configure", help="Flag to configure RDP session.", action="store_true")
         c.argument("disable_gateway", help="Flag to disable access through RD gateway.",
@@ -45,6 +47,9 @@ def load_arguments(self, _):  # pylint: disable=unused-argument
                    "that authenticates using MFA if supported by target machine. "
                    "Available on Windows 10 20H2+, Windows 11 21H2+, WS 2022.",
                    arg_type=get_three_state_flag())
+        c.argument("frontdoor", help="Azure Frontdoor proxy.", required=False, options_list=["--frontdoor"])
+
     with self.argument_context("network bastion tunnel") as c:
         c.argument("port", help="Local port to use for the tunneling.", options_list=["--port"])
         c.argument("timeout", help="Timeout for connection to bastion host tunnel.", options_list=["--timeout"])
+        c.argument("frontdoor", help="Azure Frontdoor proxy.", required=False, options_list=["--frontdoor"])
