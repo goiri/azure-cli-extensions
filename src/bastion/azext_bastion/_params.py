@@ -22,7 +22,7 @@ def load_arguments(self, _):  # pylint: disable=unused-argument
     )
 
     with self.argument_context("network bastion") as c:
-        c.argument("bastion_host_name", bastion_host_name_type, options_list=["--name", "-n"])
+        c.argument("bastion_host_name", bastion_host_name_type, options_list=["--name", "-n"], required=False)
         c.argument("resource_port", help="Resource port of the target VM to which the bastion will connect.",
                    options_list=["--resource-port"])
         c.argument("target_resource_id", help="ResourceId of the target Virtual Machine.", required=False,
