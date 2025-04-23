@@ -30,3 +30,9 @@ Now, one can pass the Azure Front Door address with the `--frontdoor` argument:
 ```bash
 az network bastion ssh --name <bastion-name> -g <resource-group> --target-ip-address <local-vm-ip> --auth-type "password" --username azureuser --frontdoor <frontdoor-address>
 ```
+
+There is another option to let the extension auto-detect the Azure Front Door address if the Bastion is not specified:
+```
+az network bastion ssh -g <resource-group> --target-ip-address <local-vm-ip> --auth-type "password" --username azureuser
+```
+This requires a single Azure Front Door in the resource group.
