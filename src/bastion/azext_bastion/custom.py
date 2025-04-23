@@ -166,16 +166,58 @@ def _build_args(cert_file, private_key_file):
     return private_key + certificate
 
 
+
+def _get_frontdoor_endpoint(cmd, resource_group_name):
+    from .frontdoor_helper import FrontDoorList
+    from .frontdoor_helper import FrontDoorEndpointsGet
+
+    subscription_id = get_subscription_id(cmd.cli_ctx)
+    frontdoor_list = FrontDoorList(cli_ctx=cmd.cli_ctx)(command_args={
+            "resource_group": resource_group_name,
+        })
+    frontdoor_list = frontdoor_list["value"]
+    assert len(frontdoor_list) == 1, "We need exactly 1 front door in the resource group"
+    frontdoor_obj = frontdoor_list[0]
+    frontdoor_id = frontdoor_obj["id"]
+    frontdoor_name = frontdoor_obj["name"]
+
+    # Get the frontdoor details
+    endpoints_list = FrontDoorEndpointsGet(cli_ctx=cmd.cli_ctx)(command_args={
+            "resource_group": resource_group_name,
+            "frontdoor_name": frontdoor_name,
+        })
+    endpoints_list = endpoints_list["value"]
+    assert len(endpoints_list) == 1, "We need exactly 1 endpoint in the front door"
+    endpoint_obj = endpoints_list[0]
+    endpoint_hostname = endpoint_obj["properties"]["hostName"]
+    return endpoint_hostname
+
+def _get_bastion_info(cmd, bastion_host_name, resource_group_name, frontdoor):
+    if bastion_host_name is not None:
+        from .aaz.latest.network.bastion import Show
+        return Show(cli_ctx=cmd.cli_ctx)(command_args={
+            "resource_group": resource_group_name,
+            "name": bastion_host_name
+        })
+
+    # Hack our own bastion to use the frontdoor directly
+    if frontdoor is None:
+        frontdoor = _get_frontdoor_endpoint(cmd, resource_group_name)
+        print(f"[ssh_bastion_host] Got Azure Front Door endpoint: {frontdoor}")
+    return {
+        "enableTunneling": True,
+        "enableIpConnect": True,
+        "sku": {'name': 'Standard'},
+        "dnsName": frontdoor
+    }
+
 def ssh_bastion_host(cmd, auth_type, target_resource_id, target_ip_address, resource_group_name, bastion_host_name,
                      resource_port=None, username=None, ssh_key=None, frontdoor=None, ssh_args=None):
     import os
-    from .aaz.latest.network.bastion import Show
 
     _test_extension(SSH_EXTENSION_NAME)
-    bastion = Show(cli_ctx=cmd.cli_ctx)(command_args={
-        "resource_group": resource_group_name,
-        "name": bastion_host_name
-    })
+
+    bastion = _get_bastion_info(cmd, bastion_host_name, resource_group_name, frontdoor)
 
     if not resource_port:
         resource_port = 22
@@ -196,7 +238,7 @@ def ssh_bastion_host(cmd, auth_type, target_resource_id, target_ip_address, reso
     bastion_endpoint = _get_bastion_endpoint(cmd, bastion, resource_port, target_resource_id)
 
     if frontdoor is not None:
-        print(f"[ssh_bastion_host] Overwritting {bastion_endpoint} with Azure FrontDoor {frontdoor}")
+        print(f"[ssh_bastion_host] Overwritting bastion with Azure Front Door: {frontdoor}")
         bastion_endpoint = frontdoor
 
     tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port, frontdoor=frontdoor)
@@ -287,12 +329,8 @@ def rdp_bastion_host(cmd, target_resource_id, target_ip_address, resource_group_
     import os
     from azure.cli.core._profile import Profile
     from ._process_helper import launch_and_wait
-    from .aaz.latest.network.bastion import Show
 
-    bastion = Show(cli_ctx=cmd.cli_ctx)(command_args={
-        "resource_group": resource_group_name,
-        "name": bastion_host_name
-    })
+    bastion = _get_bastion_info(cmd, bastion_host_name, resource_group_name, frontdoor)
 
     if not resource_port:
         resource_port = 3389
@@ -434,7 +472,7 @@ def _get_tunnel(cmd, bastion, bastion_endpoint, vm_id, resource_port, port=None,
 
     if port is None:
         port = 0  # will auto-select a free port from 1024-65535
-    tunnel_server = TunnelServer(cmd.cli_ctx, "localhost", port, bastion, bastion_endpoint, vm_id, resource_port, frontdoor)
+    tunnel_server = TunnelServer(cmd.cli_ctx, "localhost", port, bastion, bastion_endpoint, vm_id, resource_port, frontdoor=frontdoor)
 
     return tunnel_server
 
@@ -453,11 +491,7 @@ def _tunnel_close_handler(tunnel):
 def create_bastion_tunnel(cmd, target_resource_id, target_ip_address, resource_group_name, bastion_host_name,
                           resource_port, port, timeout=None, frontdoor=None):
 
-    from .aaz.latest.network.bastion import Show
-    bastion = Show(cli_ctx=cmd.cli_ctx)(command_args={
-        "resource_group": resource_group_name,
-        "name": bastion_host_name
-    })
+    bastion = _get_bastion_info(cmd, bastion_host_name, resource_group_name, frontdoor)
 
     if _is_sku_standard_or_higher(bastion['sku']['name']) is not True or \
        bastion['enableTunneling'] is not True:
@@ -475,7 +509,7 @@ def create_bastion_tunnel(cmd, target_resource_id, target_ip_address, resource_g
     _validate_resourceid(target_resource_id)
     bastion_endpoint = _get_bastion_endpoint(cmd, bastion, resource_port, target_resource_id)
     if frontdoor is not None:
-        print(f"[create_bastion_tunnel] Overwritting {bastion_endpoint} with Azure FrontDoor {frontdoor}")
+        print(f"[create_bastion_tunnel] Overwritting bastion with Azure FrontDoor {frontdoor}")
         bastion_endpoint = frontdoor
 
     tunnel_server = _get_tunnel(cmd, bastion, bastion_endpoint, target_resource_id, resource_port, port, frontdoor=frontdoor)

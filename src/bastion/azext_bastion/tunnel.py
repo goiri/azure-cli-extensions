@@ -142,8 +142,7 @@ class TunnelServer:
             else:
                 host = f"wss://{self.bastion_endpoint}/webtunnelv2/{auth_token}?X-Node-Id={self.node_id}"
 
-            use_frontdoor = True
-            if use_frontdoor:
+            if self.frontdoor is not None:
                 print("[tunnel#handle_client] Using Azure FrontDoor:", host)
                 ws = create_connection(host,
                                        sockopt=((socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),),
