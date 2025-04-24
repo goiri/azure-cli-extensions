@@ -9,15 +9,21 @@ It also ignores the mismatch of host names in the SSL handshake.
 Note that this requires an Azure Front Door setup pointing to the Azure Bastion IP.
 
 ## Install the extension
-We clone the remote repository, compile the extension, remove the previous version, and install the new one:
+We clone the Bastion subtree of the remote repository, compile the extension, remove the previous version, and install the new one:
 ```bash
-git clone https://github.com/goiri/azure-cli-extensions.git
+git clone --filter=blob:none --no-checkout https://github.com/goiri/azure-cli-extensions.git
+cd azure-cli-extensions
+git sparse-checkout init --cone
+git sparse-checkout set src/bastion
+git checkout main
+
 cd azure-cli-extensions\src\bastion
 pip install --upgrade setuptools wheel
 python setup.py bdist_wheel
 az extension remove -n bastion
 az extension add --source .\dist\bastion-1.4.0-py3-none-any.whl
 ```
+
 
 ## Create Azure Front Door
 One needs to create an Azure Front Door that points to the "public" DNS/IP of the Azure Bastion.
