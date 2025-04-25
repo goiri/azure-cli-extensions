@@ -17,7 +17,7 @@ git sparse-checkout init --cone
 git sparse-checkout set src/bastion
 git checkout main
 
-cd azure-cli-extensions\src\bastion
+cd src\bastion
 pip install --upgrade setuptools wheel
 python setup.py bdist_wheel
 az extension remove -n bastion
